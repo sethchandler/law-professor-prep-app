@@ -291,6 +291,12 @@
             font-size: 1.2rem;
         }
 
+        .results-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+
         .result-content {
             background: white;
             padding: 20px;
@@ -375,6 +381,18 @@
             color: #004085;
             display: block;
             margin-bottom: 8px;
+        }
+
+        .file-preview-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .file-preview-item {
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
         }
 
         .file-preview {
@@ -738,8 +756,8 @@ Combine elements as appropriate. Always include:
             const [error, setError] = useState('');
             const [showModal, setShowModal] = useState(false);
             const [modalProvider, setModalProvider] = useState('openai');
-            const [uploadedFile, setUploadedFile] = useState(null);
-            const [fileContent, setFileContent] = useState('');
+            const [uploadedFiles, setUploadedFiles] = useState([]);
+            const [isProcessingFiles, setIsProcessingFiles] = useState(false);
 
             // Load saved API keys and provider
             React.useEffect(() => {
@@ -879,46 +897,68 @@ Combine elements as appropriate. Always include:
             };
 
             const handleFileUpload = async (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
+                const files = Array.from(event.target.files || []);
+                if (!files.length) return;
 
                 setError('');
+                setIsProcessingFiles(true);
                 setLoading(true);
 
                 try {
-                    const fileExtension = file.name.split('.').pop().toLowerCase();
-                    let extractedText = '';
-                    let preview = '';
+                    const successfulUploads = [];
+                    const combinedTexts = [];
+                    const errorMessages = [];
 
-                    if (['txt', 'md', 'html', 'htm'].includes(fileExtension)) {
-                        // Text-based files - read directly
-                        extractedText = await readTextFile(file);
-                        preview = extractedText.substring(0, 200) + (extractedText.length > 200 ? '...' : '');
-                    } else if (fileExtension === 'pdf') {
-                        // PDF - read as text (basic extraction) or show note
-                        extractedText = await readPDFFile(file);
-                        preview = `PDF file loaded (${Math.round(file.size / 1024)} KB). Text extraction attempted.`;
-                    } else if (['docx', 'doc'].includes(fileExtension)) {
-                        // DOCX - try to extract text
-                        extractedText = await readDOCXFile(file);
-                        preview = `Word document loaded (${Math.round(file.size / 1024)} KB). Text extracted.`;
-                    } else {
-                        throw new Error('Unsupported file type. Please upload .txt, .md, .html, .pdf, or .docx files.');
+                    for (const file of files) {
+                        try {
+                            const fileExtension = file.name.split('.').pop().toLowerCase();
+                            let extractedText = '';
+                            let preview = '';
+
+                            if (['txt', 'md', 'html', 'htm'].includes(fileExtension)) {
+                                extractedText = await readTextFile(file);
+                                preview = extractedText.substring(0, 200) + (extractedText.length > 200 ? '...' : '');
+                            } else if (fileExtension === 'pdf') {
+                                extractedText = await readPDFFile(file);
+                                preview = `PDF file loaded (${Math.round(file.size / 1024)} KB). Text extraction attempted.`;
+                            } else if (['docx', 'doc'].includes(fileExtension)) {
+                                extractedText = await readDOCXFile(file);
+                                preview = `Word document loaded (${Math.round(file.size / 1024)} KB). Text extracted.`;
+                            } else {
+                                throw new Error('Unsupported file type. Please upload .txt, .md, .html, .pdf, or .docx files.');
+                            }
+
+                            successfulUploads.push({
+                                id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                                name: file.name,
+                                size: formatFileSize(file.size),
+                                preview
+                            });
+
+                            combinedTexts.push(extractedText);
+                        } catch (err) {
+                            errorMessages.push(`${file.name}: ${err.message}`);
+                        }
                     }
 
-                    setUploadedFile({
-                        name: file.name,
-                        size: formatFileSize(file.size),
-                        preview: preview
-                    });
-                    
-                    setFileContent(extractedText);
-                    setMaterials(extractedText); // Populate materials field
-                    
-                } catch (err) {
-                    setError(`Error reading file: ${err.message}`);
+                    if (successfulUploads.length > 0) {
+                        setUploadedFiles((prev) => [...prev, ...successfulUploads]);
+                        setMaterials((prev) => {
+                            const trimmedPrev = prev.trim();
+                            const newText = combinedTexts.join('\n\n');
+                            return trimmedPrev ? `${trimmedPrev}\n\n${newText}` : newText;
+                        });
+                    }
+
+                    if (errorMessages.length > 0) {
+                        setError(`Error reading file${errorMessages.length > 1 ? 's' : ''}: ${errorMessages.join(' | ')}`);
+                    }
                 } finally {
+                    setIsProcessingFiles(false);
                     setLoading(false);
+                    if (event.target) {
+                        event.target.value = '';
+                    }
                 }
             };
 
@@ -996,10 +1036,30 @@ Combine elements as appropriate. Always include:
                 return Math.round(bytes / (1024 * 1024)) + ' MB';
             };
 
-            const clearFile = () => {
-                setUploadedFile(null);
-                setFileContent('');
+            const clearFiles = () => {
+                setUploadedFiles([]);
                 setMaterials('');
+            };
+
+            const downloadResults = () => {
+                if (!result || !result.trim()) {
+                    return;
+                }
+
+                const header = '# Law Professor Analysis Results';
+                const timestamp = new Date().toISOString().slice(0, 10);
+                const markdownContent = `${header}\n\n${result}`;
+                const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `law-professor-analysis-${timestamp}.md`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                URL.revokeObjectURL(url);
             };
 
             const handleSubmit = async () => {
@@ -1013,6 +1073,7 @@ Combine elements as appropriate. Always include:
                     return;
                 }
 
+                setIsProcessingFiles(false);
                 setLoading(true);
                 setError('');
                 setResult('');
@@ -1209,23 +1270,31 @@ ${additionalNotes ? `Additional Instructions:\n${additionalNotes}` : ''}`;
                             <input
                                 type="file"
                                 accept=".txt,.pdf,.docx,.doc,.md,.html,.htm"
+                                multiple
                                 onChange={handleFileUpload}
                                 style={{ marginBottom: '10px' }}
                             />
-                            {uploadedFile && (
+                            {uploadedFiles.length > 0 && (
                                 <div className="file-info-box">
-                                    <strong>📄 Uploaded: {uploadedFile.name} ({uploadedFile.size})</strong>
-                                    {uploadedFile.preview && (
-                                        <div className="file-preview">
-                                            {uploadedFile.preview}
-                                        </div>
-                                    )}
+                                    <strong>📄 Uploaded Files ({uploadedFiles.length})</strong>
+                                    <div className="file-preview-list">
+                                        {uploadedFiles.map((file) => (
+                                            <div key={file.id} className="file-preview-item">
+                                                <div><strong>{file.name}</strong> ({file.size})</div>
+                                                {file.preview && (
+                                                    <div className="file-preview">
+                                                        {file.preview}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
                                     <button 
                                         className="btn btn-secondary" 
-                                        onClick={clearFile}
+                                        onClick={clearFiles}
                                         style={{ marginTop: '10px', padding: '6px 12px', fontSize: '0.85rem' }}
                                     >
-                                        🗑️ Clear File
+                                        🗑️ Clear Files
                                     </button>
                                 </div>
                             )}
@@ -1279,7 +1348,7 @@ ${additionalNotes ? `Additional Instructions:\n${additionalNotes}` : ''}`;
                         {loading && (
                             <div className="loading">
                                 <div className="spinner"></div>
-                                <p>{uploadedFile ? 'Processing file...' : 'Applying law professor thinking moves...'}</p>
+                                <p>{isProcessingFiles ? 'Processing files...' : 'Applying law professor thinking moves...'}</p>
                             </div>
                         )}
 
@@ -1287,6 +1356,15 @@ ${additionalNotes ? `Additional Instructions:\n${additionalNotes}` : ''}`;
                         {result && !loading && (
                             <div className="results-section">
                                 <h3>📚 Analysis Results</h3>
+                                <div className="results-actions">
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={downloadResults}
+                                        style={{ padding: '8px 16px', fontSize: '0.9rem' }}
+                                    >
+                                        ⬇️ Download as Markdown
+                                    </button>
+                                </div>
                                 <div className="result-content">
                                     {result}
                                 </div>
