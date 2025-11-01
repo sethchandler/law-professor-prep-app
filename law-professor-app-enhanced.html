@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Law Professor Assistant</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configure PDF.js worker
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .api-key-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+
+        .api-key-section h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .api-key-section p {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .provider-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .provider-button {
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .provider-button:hover {
+            border-color: #667eea;
+        }
+
+        .provider-button.selected {
+            border-color: #667eea;
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .api-key-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input[type="password"],
+        input[type="text"],
+        input[type="file"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="file"] {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        input[type="password"]:focus,
+        input[type="text"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f9fa;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .form-section {
+            margin-bottom: 25px;
+        }
+
+        .form-section label {
+            display: block;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .form-section .help-text {
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 150px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .mode-card {
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .mode-card.selected {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .mode-card h4 {
+            color: #2c3e50;
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .mode-card p {
+            color: #6c757d;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .results-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+
+        .results-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .result-content {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            line-height: 1.8;
+            color: #2c3e50;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            border: 2px solid #fcc;
+        }
+
+        .success-badge {
+            display: inline-block;
+            background: #d4edda;
+            color: #155724;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-left: 10px;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border: 2px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h4 {
+            color: #004085;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .info-box p {
+            color: #004085;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 5px 0;
+        }
+
+        .file-info-box {
+            background: #e7f3ff;
+            border: 2px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .file-info-box strong {
+            color: #004085;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .file-preview {
+            margin-top: 8px;
+            color: #6c757d;
+            font-size: 0.85rem;
+            max-height: 100px;
+            overflow-y: auto;
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            color: #6c757d;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close-button:hover {
+            color: #2c3e50;
+        }
+
+        .modal-body {
+            color: #2c3e50;
+            line-height: 1.8;
+        }
+
+        .modal-body h3 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .modal-body ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .modal-body li {
+            margin-bottom: 8px;
+        }
+
+        .modal-body a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .modal-body a:hover {
+            text-decoration: underline;
+        }
+
+        .modal-body .cost-note {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .mode-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .api-key-input {
+                flex-direction: column;
+            }
+
+            .provider-selector {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const SYSTEM_PROMPT = `You are a law professor's thinking partner—someone who surfaces doctrinal tensions, generates teaching materials, and develops scholarly ideas through skeptical yet generative engagement with legal materials.
+
+# Core Mindset
+
+Adopt these habits of thought:
+
+1. **Skeptical loyalty to the canon** - Read cases as if they could still surprise you; find the better version of the holding hidden in facts or remedy
+2. **Institutional realism** - Always ask which institution (trial judge, jury, agency, legislature, appellate court) is structurally suited to resolve this tension
+3. **Generosity before critique** - Steelman the best case for the doctrine you dislike; many scholarly moves come from carrying rival positions farther than their champions dared
+4. **Mechanism over vibes** - Explain how claims work in actual lawsuits: posture, burdens, standard of review, remedy
+5. **Comparative humility** - Check what other jurisdictions or adjacent fields already tried; your contribution may be translation, not invention
+
+# Workflow
+
+## Phase 1: Orientation
+
+Quickly establish:
+- **Live tension** - What doctrinal puzzle or institutional choice is at stake?
+- **Hinge facts** - Which facts do all the work? What minimal changes flip outcomes?
+- **Institutional posture** - Who decides? What standard? What remedy?
+- **Anomalies** - Any misfit cases that don't reconcile cleanly?
+
+Keep this under 2 paragraphs unless user needs detailed case briefing.
+
+## Phase 2: Provocation (creative core)
+
+Run 2-4 "thinking moves" from the repertoire below. Choose moves that generate heat for the specific topic:
+
+**Renaming moves:**
+- Rename the problem with three alternative frames, each foregrounding different mechanisms (information cost, error allocation, separation of powers, remedial fit)
+- Restate holding at three levels of generality (micro fact-pattern, doctrinal principle, constitutional value)
+
+**Searching moves:**
+- Anomaly hunt: Find the case that doesn't fit but never got overruled; explain its survival
+- Adjacent-field mirror: Borrow exactly one tool from neighbor field to re-analyze
+- Time-travel: Ask how dispute would play in 1890, 1937, 1976, 1995, 2025, five years from now
+
+**Inversion moves:**
+- Remedy-first: Start with remedy that would make system better; reverse-engineer the rule
+- Burden shift: Move burden to other party; predict downstream litigation behavior
+- Counter-narrator: Rewrite facts from losing party's strongest perspective
+
+**Edge-finding moves:**
+- Pathological hypo, then taming: Craft outrageous hypothetical; cut back until plausible; your boundary sits one cut earlier
+- Cost-of-information lens: Reframe rule as bet about who can cheaply generate/verify decisive facts
+- What would it take to reverse: Draft the paragraph that lets later court narrow/flip without admitting it
+
+## Phase 3: Synthesis (concrete outputs)
+
+### For Class Mode:
+
+Produce:
+
+1. **Opening puzzle** (1-2 sentences) - Question that puts students on wrong but intelligent track
+2. **Teachable tension** (1 sentence) - The friction students will live with by end of class
+3. **Three one-fact deltas** - Minimal-change hypotheticals that locate the doctrine
+4. **Counter-narrator moment** - Script where student defends losing party using opinion's own logic
+5. **Exit bridge** - Short "what would it take to reverse" or "if this bothered you, you now have a paper" prompt
+
+Keep everything concrete and classroom-ready. Avoid over-explaining.
+
+### For Scholarship Mode:
+
+Produce:
+
+1. **Claim that moves a case** (1 paragraph) - Thesis stated as change to litigated outcome in plausible posture. Name the motion and remedy.
+2. **Mechanism sentence** - Why proposal reduces error or cost, or honors institutional competence
+3. **First adopter + clean limit** - Who could implement without permission? Where should your idea lose?
+4. **Strongest counter-abstract** (3-4 sentences) - The other side's best day
+5. **Research vectors** (3-5 items) - Specific places to look: cases, empirical studies, adjacent doctrines, comparative law
+
+### For Hybrid/Custom Mode:
+
+Combine elements as appropriate. Always include:
+- At least one concrete hypothetical or outcome test
+- Mechanism explanation (not just slogans)
+- Research directions if user will need sources beyond current materials
+
+# Quality Guardrails
+
+**Do:**
+- Start where cases turn, not with grand themes
+- Make predictions about litigation behavior
+- Mark edges where your idea should lose
+- Use short questions rather than long explanations in class materials
+- Name your contribution precisely
+
+**Don't:**
+- Multiply frameworks needlessly
+- Worship slogans without mechanism
+- Generate 10-point lists when 3 sharp insights suffice
+- Over-format with headers and bullets in casual analysis
+- Start with "Let me analyze" or "Here's what I found" - just do it
+
+# Materials Handling
+
+**When user provides case text or excerpts:**
+- Read carefully for hinge facts, procedural posture, remedy granted/denied
+- Note any passages that seem to do unnecessary work (may signal hidden tensions)
+- Check for dissents or concurrences that reveal what majority is concealing
+
+**When user provides only citation or topic:**
+- Use knowledge of canonical cases
+- Note when working from general doctrine vs. specific case
+- Offer to search for recent developments if expansive scope selected
+
+**When combining multiple sources:**
+- Identify which sources are in tension and why
+- Note any changes in institutional context (jury trial vs. bench trial, state vs. federal, pre-enforcement review vs. post-violation suit)`;
+
+        const MODELS = {
+            openai: [
+                { id: 'gpt-5', name: 'GPT-5 (Flagship)', description: 'Best for complex reasoning and coding' },
+                { id: 'gpt-5-mini', name: 'GPT-5 Mini', description: 'Fast and cost-effective' },
+                { id: 'gpt-5-nano', name: 'GPT-5 Nano', description: 'Smallest and fastest' },
+                { id: 'gpt-5-chat-latest', name: 'GPT-5 Chat', description: 'Non-reasoning version' }
+            ],
+            anthropic: [
+                { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5 (Latest)', description: 'Best coding and agent model' },
+                { id: 'claude-opus-4-1-20250805', name: 'Claude Opus 4.1', description: 'Most powerful for deep reasoning' },
+                { id: 'claude-haiku-4-5-20251015', name: 'Claude Haiku 4.5', description: 'Fast and cost-effective' },
+                { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', description: 'Previous flagship' }
+            ],
+            google: [
+                { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Most powerful Gemini model' },
+                { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast and efficient' },
+                { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', description: 'Fastest and most cost-efficient' },
+                { id: 'gemini-2.5-pro-preview-06-05', name: 'Gemini 2.5 Pro Preview', description: 'Latest experimental version' }
+            ],
+            openrouter: [
+                { id: 'openai/gpt-5', name: 'OpenAI GPT-5', description: 'Via OpenRouter' },
+                { id: 'openai/gpt-5-mini', name: 'OpenAI GPT-5 Mini', description: 'Via OpenRouter' },
+                { id: 'anthropic/claude-sonnet-4-5', name: 'Claude Sonnet 4.5', description: 'Via OpenRouter' },
+                { id: 'anthropic/claude-opus-4-1', name: 'Claude Opus 4.1', description: 'Via OpenRouter' },
+                { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Via OpenRouter' },
+                { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Via OpenRouter' },
+                { id: 'minimax/minimax-m2:free', name: 'MiniMax M2 (FREE)', description: 'Free model via OpenRouter' },
+                { id: 'z-ai/glm-4.5-air:free', name: 'GLM-4.5 Air (FREE)', description: 'Free model via OpenRouter' }
+            ]
+        };
+
+        const PROVIDER_INFO = {
+            openai: {
+                name: 'OpenAI',
+                url: 'https://platform.openai.com',
+                apiUrl: 'https://api.openai.com/v1/chat/completions',
+                steps: [
+                    'Go to platform.openai.com',
+                    'Sign up or log in to your account',
+                    'Navigate to "API keys" in the left sidebar',
+                    'Click "Create new secret key"',
+                    'Copy your API key (starts with sk-...)',
+                    'Add billing method: Go to "Billing" → "Payment methods"',
+                    'Add credit: Minimum $5, pay-as-you-go pricing'
+                ],
+                pricing: 'GPT-5: $1.25/million input tokens, $10/million output tokens (~$0.03 per analysis)',
+                notes: 'You must add a credit card and pre-fund your account. OpenAI charges based on usage.'
+            },
+            anthropic: {
+                name: 'Anthropic (Claude)',
+                url: 'https://console.anthropic.com',
+                apiUrl: 'https://api.anthropic.com/v1/messages',
+                steps: [
+                    'Go to console.anthropic.com',
+                    'Sign up or log in to your account',
+                    'Navigate to "API Keys"',
+                    'Click "Create Key" and name it',
+                    'Copy your API key (starts with sk-ant-...)',
+                    'Add billing: Go to "Billing" → "Add payment method"',
+                    'Purchase credits: Minimum $5'
+                ],
+                pricing: 'Claude Sonnet 4.5: $3/million input tokens, $15/million output tokens (~$0.04 per analysis)',
+                notes: 'Prepaid credits system. You must purchase credits before using the API.'
+            },
+            google: {
+                name: 'Google (Gemini)',
+                url: 'https://aistudio.google.com/apikey',
+                apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/',
+                steps: [
+                    'Go to aistudio.google.com/apikey',
+                    'Sign in with your Google account',
+                    'Click "Get API Key" or "Create API Key"',
+                    'Select or create a Google Cloud project',
+                    'Copy your API key',
+                    'Enable billing: Go to Google Cloud Console → Billing',
+                    'Link a credit card to your project'
+                ],
+                pricing: 'Gemini 2.5 Flash: $0.075/million input tokens, $0.30/million output tokens (~$0.01 per analysis)',
+                notes: 'Free tier available with rate limits. For production use, enable Cloud billing.'
+            },
+            openrouter: {
+                name: 'OpenRouter',
+                url: 'https://openrouter.ai',
+                apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
+                steps: [
+                    'Go to openrouter.ai',
+                    'Sign up or log in with Google/GitHub',
+                    'Navigate to "Keys" in your dashboard',
+                    'Click "Create Key" and name it',
+                    'Copy your API key (starts with sk-or-v1-...)',
+                    'Add credits: Go to "Credits" → "Add Credits"',
+                    'Purchase minimum $5 in credits'
+                ],
+                pricing: 'Pay-per-use across all models. Prices vary by model. FREE models available (no cost)!',
+                notes: 'Single API for 400+ models. 5.5% platform fee on credit purchases. Credits expire after 1 year.'
+            }
+        };
+
+        function LawProfessorApp() {
+            const [provider, setProvider] = useState('anthropic');
+            const [apiKey, setApiKey] = useState('');
+            const [model, setModel] = useState(MODELS.anthropic[0].id);
+            const [mode, setMode] = useState('class');
+            const [scope, setScope] = useState('standard');
+            const [materials, setMaterials] = useState('');
+            const [additionalNotes, setAdditionalNotes] = useState('');
+            const [result, setResult] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [showModal, setShowModal] = useState(false);
+            const [modalProvider, setModalProvider] = useState('openai');
+            const [uploadedFile, setUploadedFile] = useState(null);
+            const [fileContent, setFileContent] = useState('');
+
+            // Load saved API keys and provider
+            React.useEffect(() => {
+                const savedProvider = localStorage.getItem('ai_provider') || 'anthropic';
+                const savedKey = localStorage.getItem(`${savedProvider}_api_key`) || '';
+                setProvider(savedProvider);
+                setApiKey(savedKey);
+                setModel(MODELS[savedProvider][0].id);
+            }, []);
+
+            const handleProviderChange = (newProvider) => {
+                setProvider(newProvider);
+                const savedKey = localStorage.getItem(`${newProvider}_api_key`) || '';
+                setApiKey(savedKey);
+                setModel(MODELS[newProvider][0].id);
+                localStorage.setItem('ai_provider', newProvider);
+            };
+
+            const handleApiKeySave = () => {
+                localStorage.setItem(`${provider}_api_key`, apiKey);
+                alert('API key saved successfully!');
+            };
+
+            const showProviderInfo = (providerKey) => {
+                setModalProvider(providerKey);
+                setShowModal(true);
+            };
+
+            const callOpenAI = async (userMessage) => {
+                const response = await fetch(PROVIDER_INFO.openai.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        max_tokens: 4000,
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            { role: 'user', content: userMessage }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'OpenAI API request failed');
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            };
+
+            const callAnthropic = async (userMessage) => {
+                const response = await fetch(PROVIDER_INFO.anthropic.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        max_tokens: 4000,
+                        system: SYSTEM_PROMPT,
+                        messages: [
+                            { role: 'user', content: userMessage }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'Anthropic API request failed');
+                }
+
+                const data = await response.json();
+                return data.content[0].text;
+            };
+
+            const callGoogle = async (userMessage) => {
+                const modelPath = model.includes('preview') ? model : `${model}:generateContent`;
+                const response = await fetch(`${PROVIDER_INFO.google.apiUrl}${modelPath}?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `${SYSTEM_PROMPT}\n\nUser request: ${userMessage}`
+                            }]
+                        }],
+                        generationConfig: {
+                            maxOutputTokens: 4000,
+                            temperature: 1.0
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'Google API request failed');
+                }
+
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            };
+
+            const callOpenRouter = async (userMessage) => {
+                const response = await fetch(PROVIDER_INFO.openrouter.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                        'HTTP-Referer': window.location.href,
+                        'X-Title': 'Law Professor Assistant'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            { role: 'user', content: userMessage }
+                        ],
+                        max_tokens: 4000
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'OpenRouter API request failed');
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            };
+
+            const handleFileUpload = async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                setError('');
+                setLoading(true);
+
+                try {
+                    const fileExtension = file.name.split('.').pop().toLowerCase();
+                    let extractedText = '';
+                    let preview = '';
+
+                    if (['txt', 'md', 'html', 'htm'].includes(fileExtension)) {
+                        // Text-based files - read directly
+                        extractedText = await readTextFile(file);
+                        preview = extractedText.substring(0, 200) + (extractedText.length > 200 ? '...' : '');
+                    } else if (fileExtension === 'pdf') {
+                        // PDF - read as text (basic extraction) or show note
+                        extractedText = await readPDFFile(file);
+                        preview = `PDF file loaded (${Math.round(file.size / 1024)} KB). Text extraction attempted.`;
+                    } else if (['docx', 'doc'].includes(fileExtension)) {
+                        // DOCX - try to extract text
+                        extractedText = await readDOCXFile(file);
+                        preview = `Word document loaded (${Math.round(file.size / 1024)} KB). Text extracted.`;
+                    } else {
+                        throw new Error('Unsupported file type. Please upload .txt, .md, .html, .pdf, or .docx files.');
+                    }
+
+                    setUploadedFile({
+                        name: file.name,
+                        size: formatFileSize(file.size),
+                        preview: preview
+                    });
+                    
+                    setFileContent(extractedText);
+                    setMaterials(extractedText); // Populate materials field
+                    
+                } catch (err) {
+                    setError(`Error reading file: ${err.message}`);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const readTextFile = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(new Error('Failed to read text file'));
+                    reader.readAsText(file);
+                });
+            };
+
+            const readPDFFile = async (file) => {
+                // Use PDF.js to extract text from PDF
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const arrayBuffer = e.target.result;
+                            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                            const pdf = await loadingTask.promise;
+                            
+                            let fullText = '';
+                            
+                            // Extract text from all pages
+                            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                                const page = await pdf.getPage(pageNum);
+                                const textContent = await page.getTextContent();
+                                const pageText = textContent.items.map(item => item.str).join(' ');
+                                fullText += pageText + '\n\n';
+                            }
+                            
+                            if (fullText.trim().length > 50) {
+                                resolve(fullText.trim());
+                            } else {
+                                resolve(`PDF file uploaded: ${file.name}\n\nNote: Could not extract text automatically. The PDF may be scanned or image-based. Please copy text manually.`);
+                            }
+                        } catch (err) {
+                            // Fallback for PDFs that can't be processed
+                            resolve(`PDF file uploaded: ${file.name}\n\nNote: Error extracting text (${err.message}). Please copy text from your PDF viewer and paste below.`);
+                        }
+                    };
+                    reader.onerror = () => reject(new Error('Failed to read PDF file'));
+                    reader.readAsArrayBuffer(file);
+                });
+            };
+
+            const readDOCXFile = async (file) => {
+                // Use mammoth.js to extract text from DOCX
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const arrayBuffer = e.target.result;
+                            const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                            const text = result.value;
+                            
+                            if (text && text.trim().length > 0) {
+                                resolve(text);
+                            } else {
+                                resolve(`Word document uploaded: ${file.name}\n\nNote: Could not extract text automatically. Please copy text from Word and paste below.`);
+                            }
+                        } catch (err) {
+                            resolve(`Word document uploaded: ${file.name}\n\nNote: Error extracting text (${err.message}). Please copy text from Word and paste below.`);
+                        }
+                    };
+                    reader.onerror = () => reject(new Error('Failed to read Word document'));
+                    reader.readAsArrayBuffer(file);
+                });
+            };
+
+            const formatFileSize = (bytes) => {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+                return Math.round(bytes / (1024 * 1024)) + ' MB';
+            };
+
+            const clearFile = () => {
+                setUploadedFile(null);
+                setFileContent('');
+                setMaterials('');
+            };
+
+            const handleSubmit = async () => {
+                if (!apiKey) {
+                    setError('Please enter your API key first.');
+                    return;
+                }
+
+                if (!materials.trim()) {
+                    setError('Please enter legal materials, case names, or topics to analyze.');
+                    return;
+                }
+
+                setLoading(true);
+                setError('');
+                setResult('');
+
+                const userMessage = `Mode: ${mode}
+Materials Scope: ${scope}
+
+Legal Materials/Topics:
+${materials}
+
+${additionalNotes ? `Additional Instructions:\n${additionalNotes}` : ''}`;
+
+                try {
+                    let responseText;
+                    
+                    switch(provider) {
+                        case 'openai':
+                            responseText = await callOpenAI(userMessage);
+                            break;
+                        case 'anthropic':
+                            responseText = await callAnthropic(userMessage);
+                            break;
+                        case 'google':
+                            responseText = await callGoogle(userMessage);
+                            break;
+                        case 'openrouter':
+                            responseText = await callOpenRouter(userMessage);
+                            break;
+                        default:
+                            throw new Error('Invalid provider selected');
+                    }
+
+                    setResult(responseText);
+                } catch (err) {
+                    setError(`Error: ${err.message}`);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const modes = [
+                {
+                    id: 'class',
+                    title: 'Class Mode',
+                    description: 'Generate teaching materials, Socratic questions, and hypotheticals'
+                },
+                {
+                    id: 'scholarship',
+                    title: 'Scholarship Mode',
+                    description: 'Develop paper ideas, mechanisms, and research directions'
+                },
+                {
+                    id: 'hybrid',
+                    title: 'Hybrid Mode',
+                    description: 'Both teaching and scholarly analysis'
+                },
+                {
+                    id: 'custom',
+                    title: 'Custom Mode',
+                    description: 'Specify your own analysis needs'
+                }
+            ];
+
+            const providerInfo = PROVIDER_INFO[modalProvider];
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>⚖️ Law Professor Assistant</h1>
+                        <p>Your thinking partner for legal pedagogy and scholarship • Multi-Provider Support</p>
+                    </div>
+
+                    <div className="content">
+                        {/* Provider Selection */}
+                        <div className="api-key-section">
+                            <h3>🔧 Select AI Provider</h3>
+                            <p>Choose your preferred AI provider and enter your API key</p>
+                            <div className="provider-selector">
+                                <button
+                                    className={`provider-button ${provider === 'openai' ? 'selected' : ''}`}
+                                    onClick={() => handleProviderChange('openai')}
+                                >
+                                    OpenAI (GPT-5)
+                                </button>
+                                <button
+                                    className={`provider-button ${provider === 'anthropic' ? 'selected' : ''}`}
+                                    onClick={() => handleProviderChange('anthropic')}
+                                >
+                                    Claude
+                                </button>
+                                <button
+                                    className={`provider-button ${provider === 'google' ? 'selected' : ''}`}
+                                    onClick={() => handleProviderChange('google')}
+                                >
+                                    Gemini
+                                </button>
+                                <button
+                                    className={`provider-button ${provider === 'openrouter' ? 'selected' : ''}`}
+                                    onClick={() => handleProviderChange('openrouter')}
+                                >
+                                    OpenRouter
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* API Key Configuration */}
+                        <div className="api-key-section">
+                            <h3>🔑 API Key Configuration</h3>
+                            <p>
+                                Get your {PROVIDER_INFO[provider].name} API key{' '}
+                                <button 
+                                    className="btn btn-info" 
+                                    onClick={() => showProviderInfo(provider)}
+                                    style={{ marginLeft: '10px' }}
+                                >
+                                    ℹ️ How to Get API Key
+                                </button>
+                            </p>
+                            <div className="api-key-input">
+                                <input
+                                    type="password"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder={`Enter your ${PROVIDER_INFO[provider].name} API key...`}
+                                />
+                                <button className="btn btn-secondary" onClick={handleApiKeySave}>
+                                    Save Key
+                                </button>
+                            </div>
+                            {apiKey && <span className="success-badge">✓ Key configured</span>}
+                        </div>
+
+                        {/* Model Selection */}
+                        <div className="form-section">
+                            <label>
+                                Select Model
+                                <span className="help-text">Choose the AI model to use for analysis</span>
+                            </label>
+                            <select value={model} onChange={(e) => setModel(e.target.value)}>
+                                {MODELS[provider].map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                        {m.name} - {m.description}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Info Box */}
+                        <div className="info-box">
+                            <h4>How to Use This Tool</h4>
+                            <p><strong>1.</strong> Select your AI provider and enter your API key</p>
+                            <p><strong>2.</strong> Choose your model and analysis mode</p>
+                            <p><strong>3.</strong> Upload a file (PDF, Word, TXT) or paste case text</p>
+                            <p><strong>4.</strong> Add any specific instructions or focus areas</p>
+                            <p><strong>5.</strong> Click "Analyze" to get tailored materials</p>
+                        </div>
+
+                        {/* Mode Selection */}
+                        <div className="form-section">
+                            <label>Analysis Mode</label>
+                            <div className="mode-grid">
+                                {modes.map((m) => (
+                                    <div
+                                        key={m.id}
+                                        className={`mode-card ${mode === m.id ? 'selected' : ''}`}
+                                        onClick={() => setMode(m.id)}
+                                    >
+                                        <h4>{m.title}</h4>
+                                        <p>{m.description}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Scope Selection */}
+                        <div className="form-section">
+                            <label>
+                                Materials Scope
+                                <span className="help-text">How much context should be considered?</span>
+                            </label>
+                            <select value={scope} onChange={(e) => setScope(e.target.value)}>
+                                <option value="strict">Strict - Only provided materials</option>
+                                <option value="standard">Standard - Provided materials + canonical cases</option>
+                                <option value="expansive">Expansive - Include recent developments and adjacent doctrines</option>
+                            </select>
+                        </div>
+
+                        {/* File Upload */}
+                        <div className="form-section">
+                            <label>
+                                Upload Documents (Optional)
+                                <span className="help-text">Upload case files, PDFs, Word documents, or text files (.txt, .pdf, .docx, .md, .html)</span>
+                            </label>
+                            <input
+                                type="file"
+                                accept=".txt,.pdf,.docx,.doc,.md,.html,.htm"
+                                onChange={handleFileUpload}
+                                style={{ marginBottom: '10px' }}
+                            />
+                            {uploadedFile && (
+                                <div className="file-info-box">
+                                    <strong>📄 Uploaded: {uploadedFile.name} ({uploadedFile.size})</strong>
+                                    {uploadedFile.preview && (
+                                        <div className="file-preview">
+                                            {uploadedFile.preview}
+                                        </div>
+                                    )}
+                                    <button 
+                                        className="btn btn-secondary" 
+                                        onClick={clearFile}
+                                        style={{ marginTop: '10px', padding: '6px 12px', fontSize: '0.85rem' }}
+                                    >
+                                        🗑️ Clear File
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Materials Input */}
+                        <div className="form-section">
+                            <label>
+                                Legal Materials / Topics
+                                <span className="help-text">Paste case text, citations, or describe your topic (or upload a file above)</span>
+                            </label>
+                            <textarea
+                                value={materials}
+                                onChange={(e) => setMaterials(e.target.value)}
+                                placeholder="Example: Erie Railroad v. Tompkins&#10;&#10;Or paste full case text...&#10;&#10;Or upload a file above instead of pasting"
+                            />
+                        </div>
+
+                        {/* Additional Notes */}
+                        <div className="form-section">
+                            <label>
+                                Additional Instructions (Optional)
+                                <span className="help-text">Any specific focus, class length, or paper angle you have in mind</span>
+                            </label>
+                            <textarea
+                                value={additionalNotes}
+                                onChange={(e) => setAdditionalNotes(e.target.value)}
+                                placeholder="Example: 75-minute class, want to emphasize remedy-first thinking"
+                                style={{ minHeight: '100px' }}
+                            />
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleSubmit}
+                            disabled={loading || !apiKey}
+                            style={{ width: '100%', marginTop: '10px' }}
+                        >
+                            {loading ? 'Analyzing...' : 'Analyze'}
+                        </button>
+
+                        {/* Error Display */}
+                        {error && (
+                            <div className="error">
+                                <strong>Error:</strong> {error}
+                            </div>
+                        )}
+
+                        {/* Loading State */}
+                        {loading && (
+                            <div className="loading">
+                                <div className="spinner"></div>
+                                <p>{uploadedFile ? 'Processing file...' : 'Applying law professor thinking moves...'}</p>
+                            </div>
+                        )}
+
+                        {/* Results */}
+                        {result && !loading && (
+                            <div className="results-section">
+                                <h3>📚 Analysis Results</h3>
+                                <div className="result-content">
+                                    {result}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Modal */}
+                    <div className={`modal ${showModal ? 'show' : ''}`} onClick={() => setShowModal(false)}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>How to Get {providerInfo?.name} API Key</h2>
+                                <button className="close-button" onClick={() => setShowModal(false)}>&times;</button>
+                            </div>
+                            <div className="modal-body">
+                                <h3>📝 Step-by-Step Instructions</h3>
+                                <ul>
+                                    {providerInfo?.steps.map((step, index) => (
+                                        <li key={index}>{step}</li>
+                                    ))}
+                                </ul>
+
+                                <h3>🌐 Website</h3>
+                                <p>
+                                    <a href={providerInfo?.url} target="_blank" rel="noopener noreferrer">
+                                        {providerInfo?.url}
+                                    </a>
+                                </p>
+
+                                <h3>💰 Pricing</h3>
+                                <p>{providerInfo?.pricing}</p>
+
+                                <div className="cost-note">
+                                    <strong>⚠️ Important:</strong> {providerInfo?.notes}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<LawProfessorApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
